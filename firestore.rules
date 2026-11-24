@@ -1,0 +1,22 @@
+rules_version = '2';
+service cloud.firestore {
+ match /databases/{database}/documents {
+  function admin() { return request.auth != null && exists(/databases/$(database)/documents/admins/$(request.auth.uid)); }
+  match /admins/{uid} { allow get: if request.auth != null && request.auth.uid == uid; allow list, write: if false; }
+  match /{collection}/{id} {
+   allow read: if collection in ['messages','gallery','events','settings'];
+   allow create, update, delete: if collection in ['messages','gallery','events','settings'] && admin();
+  }
+  match /inbox/{id} {
+   allow read, delete: if admin();
+   allow create: if request.resource.data.keys().hasOnly(['id','name','email','type','message','created'])
+    && request.resource.data.keys().hasAll(['id','name','email','type','message','created'])
+    && request.resource.data.id == id
+    && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 100
+    && request.resource.data.email is string && request.resource.data.email.size() <= 254
+    && request.resource.data.message is string && request.resource.data.message.size() > 0 && request.resource.data.message.size() <= 2000
+    && request.resource.data.type in ['General enquiry','Prayer request','Testimony','Giving enquiry']
+    && request.resource.data.created is string && request.resource.data.created.size() <= 40;
+  }
+ }
+}
